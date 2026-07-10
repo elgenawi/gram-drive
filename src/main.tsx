@@ -6,7 +6,7 @@ import './index.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ThemeProvider defaultTheme="system" storageKey="gram-drive-theme">
+    <ThemeProvider defaultTheme="dark" storageKey="gram-drive-theme">
       <App />
     </ThemeProvider>
   </StrictMode>,

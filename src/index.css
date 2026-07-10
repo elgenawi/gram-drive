@@ -1,3 +1,9 @@
+@font-face {
+  font-family: 'SegoeIcons';
+  src: url('/Fonts/SegoeIcons.ttf') format('truetype');
+  font-display: swap;
+}
+
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -115,6 +121,21 @@
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: oklch(0.556 0 0);
+}
+
+@utility icon {
+  font-family: 'SegoeIcons', sans-serif;
+  line-height: 1;
+}
+
+@utility app-region-drag {
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+@utility app-region-no-drag {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
 }
 
 @layer base {
