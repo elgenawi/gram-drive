@@ -221,6 +221,19 @@ function registerHandlers(win, app, previewCacheDir, getStreamPort) {
     }
   });
 
+  ipcMain.handle('folder:move', async (_event, id, newParentId) => {
+    try {
+      database.updateItem(id, { ParentId: newParentId, TimeUpdate: Math.floor(Date.now() / 1000) });
+      log.info('IPC', 'folder:move ->', id.slice(0, 8) + '...');
+      let synced = true;
+      try { await sync.uploadDb(app); } catch { synced = false; }
+      return { success: true, synced };
+    } catch (err) {
+      log.error('IPC', 'folder:move error:', err.message);
+      return { success: false, error: err.message };
+    }
+  });
+
   ipcMain.handle('folder:delete', async (_event, id) => {
     try {
       const recurseDelete = (parentId) => {
@@ -290,6 +303,30 @@ function registerHandlers(win, app, previewCacheDir, getStreamPort) {
       return { success: true, path: result.filePath };
     } catch (err) {
       log.error('IPC', 'file:download error:', err.message);
+      return { success: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('icon:get', async (_event, name) => {
+    try {
+      const { resolveIconBySingleName } = require('./icons');
+      const dataUrl = resolveIconBySingleName(name);
+      if (!dataUrl) return { success: false };
+      return { success: true, data: dataUrl.replace('data:image/png;base64,', '') };
+    } catch (err) {
+      log.error('IPC', 'icon:get error:', err.message);
+      return { success: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('icon:get-folder', async () => {
+    try {
+      const { resolveFolderIconDataUrl } = require('./icons');
+      const dataUrl = resolveFolderIconDataUrl();
+      if (!dataUrl) return { success: false };
+      return { success: true, data: dataUrl.replace('data:image/png;base64,', '') };
+    } catch (err) {
+      log.error('IPC', 'icon:get-folder error:', err.message);
       return { success: false, error: err.message };
     }
   });

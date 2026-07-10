@@ -3,6 +3,7 @@ const { Api } = require('telegram/tl');
 const { CustomFile } = require('telegram/client/uploads');
 const database = require('./database');
 const log = require('./logger');
+const { resolveIconDataUrl } = require('./icons');
 
 const DB_NAME = 'gram-drive-db.db';
 
@@ -128,13 +129,15 @@ function buildItemFromMessage(msg) {
     const ext = path.extname(fileName).replace('.', '') || 'bin';
     const mime = doc.mimeType || 'application/octet-stream';
 
+    const type = mimeType(mime);
     return {
       Id: uuid, ParentId: '-1', Name: fileName, IsFolder: 0,
       Size: Number(doc.size) || 0, MimeType: mime,
       Extention: ext, MessageId: Number(msg.id),
       RemoteId: String(doc.id), RemoteUniqueId: String(doc.accessHash),
       TimeCreation: ts, TimeUpdate: ts, IsActive: 1,
-      Type: mimeType(mime),
+      Type: type,
+      Icon: resolveIconDataUrl(type, ext),
     };
   }
 
@@ -149,6 +152,7 @@ function buildItemFromMessage(msg) {
       RemoteId: String(photo.id), RemoteUniqueId: String(photo.accessHash),
       TimeCreation: ts, TimeUpdate: ts, IsActive: 1,
       Type: 'image',
+      Icon: resolveIconDataUrl('image', 'jpg'),
     };
   }
 
@@ -302,7 +306,7 @@ async function downloadThumbnailDataUrl(msg) {
       const photo = fresh.messages?.[0]?.media?.photo;
       if (!photo) return null;
 
-      const thumbTypes = ['x', 'y', 'w', 'm', 's'];
+      const thumbTypes = ['z', 'y', 'w', 'x', 'm', 's'];
       for (const t of thumbTypes) {
         const size = (photo.sizes || []).find(s => s.type === t);
         if (!size) continue;
@@ -337,17 +341,21 @@ async function downloadThumbnailDataUrl(msg) {
     if (msg.media.document?.thumbs?.length) {
       const sizes = msg.media.document.thumbs;
       for (let i = sizes.length - 1; i >= 0; i--) {
-        if (sizes[i].bytes && Buffer.from(sizes[i].bytes).length > 50) {
-          const base64 = Buffer.from(sizes[i].bytes).toString('base64');
-          return `data:image/jpeg;base64,${base64}`;
-        }
         try {
           const buf = await client.downloadMedia(msg, { thumb: i });
-          if (buf && Buffer.from(buf).length > 500) {
+          if (buf && Buffer.from(buf).length > 2000) {
             const base64 = Buffer.from(buf).toString('base64');
+            log.debug('Thumb', 'Downloaded video thumb', i, 'bytes:', Buffer.from(buf).length);
             return `data:image/jpeg;base64,${base64}`;
           }
         } catch {}
+      }
+      for (let i = sizes.length - 1; i >= 0; i--) {
+        if (sizes[i].bytes && Buffer.from(sizes[i].bytes).length > 50) {
+          const base64 = Buffer.from(sizes[i].bytes).toString('base64');
+          log.debug('Thumb', 'Fallback inline video', Buffer.from(sizes[i].bytes).length);
+          return `data:image/jpeg;base64,${base64}`;
+        }
       }
     }
 

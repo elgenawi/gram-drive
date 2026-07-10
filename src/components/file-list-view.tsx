@@ -1,5 +1,7 @@
-import { Pencil, Trash2 } from 'lucide-react'
-import { fileIcon, formatSize, formatDate } from '@/lib/dashboard-utils'
+import { useState } from 'react'
+import { Pencil, Trash2, Image } from 'lucide-react'
+import { formatSize, formatDate } from '@/lib/dashboard-utils'
+import { FileIcon } from '@/components/file-icon'
 import type { FSItem } from '@/vite-env'
 
 type Props = {
@@ -7,9 +9,33 @@ type Props = {
   onClick: (item: FSItem) => void
   onRename: (item: FSItem) => void
   onDelete: (item: FSItem) => void
+  onMove: (itemId: string, targetFolderId: string) => void
 }
 
-export function FileListView({ items, onClick, onRename, onDelete }: Props) {
+export function FileListView({ items, onClick, onRename, onDelete, onMove }: Props) {
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [dragOverId, setDragOverId] = useState<string | null>(null)
+
+  const handleDragStart = (e: React.DragEvent, item: FSItem) => {
+    e.dataTransfer.setData('text/plain', item.Id)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleDragOver = (e: React.DragEvent, item: FSItem) => {
+    if (!item.IsFolder) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }
+
+  const handleDrop = (e: React.DragEvent, folder: FSItem) => {
+    e.preventDefault()
+    setDragOverId(null)
+    const draggedId = e.dataTransfer.getData('text/plain')
+    if (draggedId && draggedId !== folder.Id) {
+      onMove(draggedId, folder.Id)
+    }
+  }
+
   return (
     <div className="rounded-xl border border-border overflow-hidden">
       <div className="grid grid-cols-12 gap-2 px-4 py-2 text-xs font-medium text-muted-foreground bg-muted/30 border-b border-border">
@@ -21,13 +47,30 @@ export function FileListView({ items, onClick, onRename, onDelete }: Props) {
       {items.map((file) => (
         <div
           key={file.Id}
-          className="grid grid-cols-12 gap-2 px-4 py-2.5 text-sm border-b border-border last:border-0 hover:bg-accent/30 transition-colors cursor-pointer"
-          onClick={() => onClick(file)}
+          draggable
+          className={`grid grid-cols-12 gap-2 px-4 py-2.5 text-sm border-b border-border last:border-0 transition-colors cursor-pointer ${
+            dragOverId === file.Id
+              ? 'border-primary border-2 bg-primary/10'
+              : selectedId === file.Id
+              ? 'bg-primary/5'
+              : 'hover:bg-accent/30'
+          }`}
+          onClick={() => setSelectedId(file.Id)}
+          onDoubleClick={() => onClick(file)}
+          onDragStart={(e) => handleDragStart(e, file)}
+          onDragOver={(e) => handleDragOver(e, file)}
+          onDragEnter={(e) => { if (file.IsFolder) { e.preventDefault(); setDragOverId(file.Id) } }}
+          onDragLeave={() => setDragOverId(null)}
+          onDrop={(e) => handleDrop(e, file)}
         >
           <div className="col-span-5 flex items-center gap-3 min-w-0">
             {file.ThumbnailUrl ? (
-              <img src={file.ThumbnailUrl} alt={file.Name} className="size-8 rounded object-cover shrink-0" />
-            ) : fileIcon(file.Type, file.IsFolder)}
+              <img src={file.ThumbnailUrl} alt={file.Name} className="size-8 rounded object-contain shrink-0" />
+            ) : file.Icon ? (
+              <FileIcon dataUrl={file.Icon} ext={file.Extention} type={file.Type} className="size-8" />
+            ) : (
+              <Image className="size-8 text-muted-foreground/40" />
+            )}
             <span className="truncate">{file.Name}</span>
           </div>
           <div className="col-span-2 text-muted-foreground text-xs self-center">

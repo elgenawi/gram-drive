@@ -7,6 +7,7 @@ import { DashboardSidebar } from '@/components/dashboard-sidebar'
 import { DashboardToolbar } from '@/components/dashboard-toolbar'
 import { FileGridView } from '@/components/file-grid-view'
 import { FileListView } from '@/components/file-list-view'
+import { NameDialog } from '@/components/name-dialog'
 
 const api = () => window.electronAPI
 
@@ -24,6 +25,7 @@ export function DashboardPage() {
   const [indexing, setIndexing] = useState(false)
   const [previewItem, setPreviewItem] = useState<FSItem | null>(null)
   const [previewUrl, setPreviewUrl] = useState('')
+  const [nameDialog, setNameDialog] = useState<{ mode: 'create' | 'rename'; item?: FSItem } | null>(null)
   const initialized = useRef(false)
 
   useEffect(() => {
@@ -107,20 +109,12 @@ export function DashboardPage() {
     loadItems('-1')
   }
 
-  const handleNewFolder = async () => {
-    const name = prompt('Folder name:')
-    if (!name?.trim()) return
-    const res = await api()!.folder!.create(currentParent === '-1' ? undefined : currentParent, name.trim())
-    if (res.synced === false) setSyncWarn('Folder created locally but database upload to cloud failed')
-    await loadItems(currentParent)
+  const handleNewFolder = () => {
+    setNameDialog({ mode: 'create' })
   }
 
-  const handleRename = async (item: FSItem) => {
-    const name = prompt('New name:', item.Name)
-    if (!name?.trim() || name === item.Name) return
-    const res = await api()!.folder!.rename(item.Id, name.trim())
-    if (res.synced === false) setSyncWarn('Rename saved locally but database upload to cloud failed')
-    await loadItems(currentParent)
+  const handleRename = (item: FSItem) => {
+    setNameDialog({ mode: 'rename', item })
   }
 
   const handleDelete = async (item: FSItem) => {
@@ -183,6 +177,27 @@ export function DashboardPage() {
       setSyncWarn('Index failed: ' + r.error)
     }
     setIndexing(false)
+  }
+
+  const handleMove = async (itemId: string, targetFolderId: string) => {
+    const res = await api()!.folder!.move(itemId, targetFolderId)
+    if (!res.success) { setSyncWarn('Move failed: ' + (res.error || 'unknown error')); return }
+    if (res.synced === false) setSyncWarn('Item moved locally but database upload to cloud failed')
+    await loadItems(currentParent)
+  }
+
+  const handleNameConfirm = async (name: string) => {
+    if (!nameDialog) return
+    if (nameDialog.mode === 'create') {
+      const res = await api()!.folder!.create(currentParent === '-1' ? undefined : currentParent, name)
+      if (res.synced === false) setSyncWarn('Folder created locally but database upload to cloud failed')
+    } else if (nameDialog.mode === 'rename' && nameDialog.item) {
+      if (name === nameDialog.item.Name) { setNameDialog(null); return }
+      const res = await api()!.folder!.rename(nameDialog.item.Id, name)
+      if (res.synced === false) setSyncWarn('Rename saved locally but database upload to cloud failed')
+    }
+    setNameDialog(null)
+    await loadItems(currentParent)
   }
 
   const handleSignOut = async () => {
@@ -254,9 +269,9 @@ export function DashboardPage() {
                 <p className="text-xs">Upload files or create a folder to get started</p>
               </div>
             ) : viewMode === 'grid' ? (
-              <FileGridView items={filteredItems} onClick={handleClick} onRename={handleRename} onDelete={handleDelete} />
+              <FileGridView items={filteredItems} onClick={handleClick} onRename={handleRename} onDelete={handleDelete} onMove={handleMove} />
             ) : (
-              <FileListView items={filteredItems} onClick={handleClick} onRename={handleRename} onDelete={handleDelete} />
+              <FileListView items={filteredItems} onClick={handleClick} onRename={handleRename} onDelete={handleDelete} onMove={handleMove} />
             )}
           </div>
 
@@ -274,6 +289,15 @@ export function DashboardPage() {
           onClose={() => { setPreviewUrl(''); setPreviewItem(null) }}
         />
       )}
+
+      <NameDialog
+        open={nameDialog !== null}
+        title={nameDialog?.mode === 'create' ? 'Create Folder' : 'Rename'}
+        initialValue={nameDialog?.mode === 'rename' ? nameDialog.item?.Name ?? '' : ''}
+        placeholder="Folder name"
+        onConfirm={handleNameConfirm}
+        onCancel={() => setNameDialog(null)}
+      />
     </div>
   )
 }

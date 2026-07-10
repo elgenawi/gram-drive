@@ -30,7 +30,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   folder: {
     create: (parentId, name) => ipcRenderer.invoke('folder:create', parentId, name),
     rename: (id, name) => ipcRenderer.invoke('folder:rename', id, name),
+    move: (id, newParentId) => ipcRenderer.invoke('folder:move', id, newParentId),
     delete: (id) => ipcRenderer.invoke('folder:delete', id),
+  },
+  icon: {
+    get: (name) => ipcRenderer.invoke('icon:get', name),
+    getFolder: () => ipcRenderer.invoke('icon:get-folder'),
   },
   file: {
     upload: (parentId) => ipcRenderer.invoke('file:upload', parentId),

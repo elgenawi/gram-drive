@@ -53,6 +53,7 @@ type SyncAPI = {
 type FolderAPI = {
   create: (parentId: string | undefined, name: string) => Promise<{ success: boolean; id?: string; synced?: boolean; error?: string }>
   rename: (id: string, name: string) => Promise<{ success: boolean; synced?: boolean; error?: string }>
+  move: (id: string, newParentId: string) => Promise<{ success: boolean; synced?: boolean; error?: string }>
   delete: (id: string) => Promise<{ success: boolean; synced?: boolean; error?: string }>
 }
 
@@ -60,6 +61,11 @@ type FileAPI = {
   upload: (parentId?: string) => Promise<{ success: boolean; canceled?: boolean; items?: FSItem[]; synced?: boolean; error?: string }>
   download: (itemId: string) => Promise<{ success: boolean; canceled?: boolean; path?: string; error?: string }>
   preview: (item: FSItem) => Promise<{ success: boolean; url?: string; mimeType?: string; error?: string; isStream?: boolean }>
+}
+
+type IconAPI = {
+  get: (name: string) => Promise<{ success: boolean; data?: string; error?: string }>
+  getFolder: () => Promise<{ success: boolean; data?: string; error?: string }>
 }
 
   interface Window {
@@ -74,5 +80,6 @@ type FileAPI = {
     sync: SyncAPI
     folder: FolderAPI
     file: FileAPI
+    icon: IconAPI
   }
 }
