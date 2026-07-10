@@ -1,67 +1,14 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Folder, CloudOff } from 'lucide-react'
 import { TitleBar } from '@/components/title-bar'
-import {
-  Folder,
-  FileText,
-  Image,
-  Film,
-  Music,
-  FileArchive,
-  HardDrive,
-  Search,
-  Grid3X3,
-  List,
-  LogOut,
-  ChevronRight,
-  Star,
-  MessageSquare,
-  Download,
-  Clock,
-  Plus,
-  Upload,
-  Trash2,
-  Pencil,
-  RefreshCw,
-  Cloud,
-  CloudOff,
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { PreviewModal } from '@/components/preview-modal'
+import { DashboardSidebar } from '@/components/dashboard-sidebar'
+import { DashboardToolbar } from '@/components/dashboard-toolbar'
+import { FileGridView } from '@/components/file-grid-view'
+import { FileListView } from '@/components/file-list-view'
 
 const api = () => window.electronAPI
-
-const fileIcon = (type: string | undefined | null, isFolder: number | undefined | null) => {
-  if (isFolder) return <Folder className="h-5 w-5 text-amber-400" />
-  switch (type) {
-    case 'image': return <Image className="h-5 w-5 text-emerald-400" />
-    case 'video': return <Film className="h-5 w-5 text-purple-400" />
-    case 'audio': return <Music className="h-5 w-5 text-rose-400" />
-    case 'archive': return <FileArchive className="h-5 w-5 text-orange-400" />
-    default: return <FileText className="h-5 w-5 text-blue-400" />
-  }
-}
-
-const formatSize = (bytes: number | undefined | null) => {
-  if (!bytes) return '--'
-  if (bytes < 1024) return bytes + ' B'
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
-}
-
-const formatDate = (ts: number | undefined | null) => {
-  if (!ts) return '--'
-  return new Date(ts * 1000).toLocaleDateString()
-}
-
-const sidebarItems = [
-  { icon: HardDrive, label: 'My Drive', value: '-1' },
-  { icon: Star, label: 'Starred' },
-  { icon: MessageSquare, label: 'Saved Messages' },
-  { icon: Download, label: 'Downloads' },
-  { icon: Clock, label: 'Recent' },
-]
 
 export function DashboardPage() {
   const navigate = useNavigate()
@@ -124,9 +71,7 @@ export function DashboardPage() {
   const initApp = async () => {
     await api()!.db!.init()
     const s = await api()!.sync!.status()
-    if (s.synced) {
-      setSynced(true)
-    }
+    if (s.synced) setSynced(true)
     await loadItems('-1')
     setChecking(false)
     setLoading(false)
@@ -154,6 +99,12 @@ export function DashboardPage() {
     setLoading(true)
     await loadItems(target.Id)
     setLoading(false)
+  }
+
+  const navigateHome = () => {
+    setCurrentParent('-1')
+    setBreadcrumbs([])
+    loadItems('-1')
   }
 
   const handleNewFolder = async () => {
@@ -260,140 +211,28 @@ export function DashboardPage() {
       <TitleBar />
 
       <div className="flex flex-1 min-h-0">
-        {/* Sidebar */}
-        <aside className="w-56 shrink-0 border-r border-border bg-muted/20 flex flex-col">
-          <div className="p-3 space-y-2">
-            <Button className="w-full justify-start gap-2 h-9 text-sm" onClick={handleNewFolder}>
-              <Plus className="h-4 w-4" />
-              New Folder
-            </Button>
-            <Button className="w-full justify-start gap-2 h-9 text-sm" variant="outline" onClick={handleUpload}>
-              <Upload className="h-4 w-4" />
-              Upload Files
-            </Button>
-          </div>
+        <DashboardSidebar
+          currentParent={currentParent}
+          indexing={indexing}
+          synced={synced}
+          onNewFolder={handleNewFolder}
+          onUpload={handleUpload}
+          onNavigateHome={navigateHome}
+          onSync={handleSync}
+          onIndexTelegram={handleIndexTelegram}
+          onSignOut={handleSignOut}
+        />
 
-          <nav className="flex-1 px-2 space-y-0.5">
-            {sidebarItems.map((item) => (
-              <button
-                key={item.label}
-                className={`w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors cursor-pointer ${
-                  item.value === currentParent
-                    ? 'bg-accent text-accent-foreground font-medium'
-                    : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
-                }`}
-                onClick={() => {
-                  if (item.value === '-1') {
-                    setCurrentParent('-1')
-                    setBreadcrumbs([])
-                    loadItems('-1')
-                  }
-                }}
-              >
-                <item.icon className="h-4 w-4 shrink-0" />
-                <span className="truncate">{item.label}</span>
-              </button>
-            ))}
-          </nav>
-
-          <div className="p-3 border-t border-border space-y-2">
-            <button
-              className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors cursor-pointer"
-              onClick={handleSync}
-            >
-              <RefreshCw className="h-4 w-4 shrink-0" />
-              <span>Sync Now</span>
-            </button>
-            <button
-              className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors cursor-pointer disabled:opacity-50"
-              onClick={handleIndexTelegram}
-              disabled={indexing}
-            >
-              <Download className="h-4 w-4 shrink-0" />
-              <span>{indexing ? 'Indexing...' : 'Index from Telegram'}</span>
-            </button>
-            <button
-              className="w-full flex items-center gap-3 px-3 py-2 text-sm rounded-lg text-muted-foreground hover:bg-accent/50 hover:text-foreground transition-colors cursor-pointer"
-              onClick={handleSignOut}
-            >
-              <LogOut className="h-4 w-4 shrink-0" />
-              <span>Sign Out</span>
-            </button>
-          </div>
-
-          <div className="px-4 pb-3">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              {synced ? <Cloud className="h-3 w-3" /> : <CloudOff className="h-3 w-3" />}
-              <span className="flex-1">{synced ? 'Synced' : 'Not synced'}</span>
-            </div>
-          </div>
-        </aside>
-
-        {/* Main content */}
         <div className="flex-1 flex flex-col min-w-0">
-          {/* Toolbar */}
-          <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border">
-            <div className="flex items-center gap-1 text-muted-foreground">
-              <button
-                className="p-1 rounded hover:bg-accent cursor-pointer disabled:opacity-30"
-                disabled={breadcrumbs.length === 0}
-                onClick={() => navigateBreadcrumb(-1)}
-              >
-                <ChevronRight className="h-4 w-4 rotate-180" />
-              </button>
-            </div>
-
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <button
-                className="hover:text-foreground transition-colors cursor-pointer"
-                onClick={() => {
-                  setCurrentParent('-1')
-                  setBreadcrumbs([])
-                  loadItems('-1')
-                }}
-              >
-                My Drive
-              </button>
-              {breadcrumbs.map((crumb, i) => (
-                <span key={crumb.Id} className="flex items-center gap-1.5">
-                  <ChevronRight className="h-3 w-3" />
-                  <button
-                    className="hover:text-foreground transition-colors cursor-pointer"
-                    onClick={() => navigateBreadcrumb(i)}
-                  >
-                    {crumb.Name}
-                  </button>
-                </span>
-              ))}
-            </div>
-
-            <div className="flex-1" />
-
-            <div className="relative w-64">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search files..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="pl-8 h-8 text-sm"
-              />
-            </div>
-
-            <div className="flex items-center border-l border-border pl-2 gap-1">
-              <button
-                className={`p-1.5 rounded cursor-pointer ${viewMode === 'grid' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-                onClick={() => setViewMode('grid')}
-              >
-                <Grid3X3 className="h-4 w-4" />
-              </button>
-              <button
-                className={`p-1.5 rounded cursor-pointer ${viewMode === 'list' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-                onClick={() => setViewMode('list')}
-              >
-                <List className="h-4 w-4" />
-      </button>
-            </div>
-          </div>
+          <DashboardToolbar
+            breadcrumbs={breadcrumbs}
+            searchQuery={searchQuery}
+            viewMode={viewMode}
+            onNavigateHome={navigateHome}
+            onNavigateBreadcrumb={navigateBreadcrumb}
+            onSearchChange={setSearchQuery}
+            onViewModeChange={setViewMode}
+          />
 
           {syncWarn && (
             <div className="flex items-center gap-2 px-4 py-1.5 bg-amber-500/10 border-b border-amber-500/20 text-xs text-amber-600">
@@ -402,7 +241,7 @@ export function DashboardPage() {
               <button className="hover:text-amber-800 cursor-pointer" onClick={() => setSyncWarn('')}>✕</button>
             </div>
           )}
-          {/* File area */}
+
           <div className="flex-1 overflow-y-auto p-4">
             {loading ? (
               <div className="h-full flex items-center justify-center">
@@ -415,96 +254,19 @@ export function DashboardPage() {
                 <p className="text-xs">Upload files or create a folder to get started</p>
               </div>
             ) : viewMode === 'grid' ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                {filteredItems.map((file) => (
-                    <div
-                      key={file.Id}
-                      className="group relative flex flex-col items-center gap-2 p-4 rounded-xl border border-border hover:border-primary/30 hover:bg-accent/30 transition-all cursor-pointer"
-                      onClick={() => handleClick(file)}
-                    >
-                    <div className="size-14 flex items-center justify-center rounded-xl bg-muted/50 group-hover:bg-muted transition-colors overflow-hidden">
-                      {file.ThumbnailUrl ? (
-                        <img src={file.ThumbnailUrl} alt={file.Name} className="size-full object-cover" />
-                      ) : fileIcon(file.Type, file.IsFolder)}
-                    </div>
-                    <span className="text-xs text-center leading-tight line-clamp-2 break-all">
-                      {file.Name}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground">
-                      {file.IsFolder ? 'folder' : formatSize(file.Size)}
-                    </span>
-                    {!file.IsFolder && (
-                      <div className="hidden group-hover:flex absolute top-1 right-1 gap-1">
-                        <button
-                          className="p-1 rounded bg-background border border-border hover:bg-accent cursor-pointer"
-                          onClick={(e) => { e.stopPropagation(); handleRename(file) }}
-                        >
-                          <Pencil className="h-3 w-3" />
-                        </button>
-                        <button
-                          className="p-1 rounded bg-background border border-border hover:bg-destructive hover:text-destructive-foreground cursor-pointer"
-                          onClick={(e) => { e.stopPropagation(); handleDelete(file) }}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
+              <FileGridView items={filteredItems} onClick={handleClick} onRename={handleRename} onDelete={handleDelete} />
             ) : (
-              <div className="rounded-xl border border-border overflow-hidden">
-                <div className="grid grid-cols-12 gap-2 px-4 py-2 text-xs font-medium text-muted-foreground bg-muted/30 border-b border-border">
-                  <div className="col-span-5 flex items-center gap-2">Name</div>
-                  <div className="col-span-2">Size</div>
-                  <div className="col-span-3">Modified</div>
-                  <div className="col-span-2">Actions</div>
-                </div>
-                {filteredItems.map((file) => (
-                  <div
-                    key={file.Id}
-                    className="grid grid-cols-12 gap-2 px-4 py-2.5 text-sm border-b border-border last:border-0 hover:bg-accent/30 transition-colors cursor-pointer"
-                    onClick={() => handleClick(file)}
-                  >
-                    <div className="col-span-5 flex items-center gap-3 min-w-0">
-                      {file.ThumbnailUrl ? (
-                        <img src={file.ThumbnailUrl} alt={file.Name} className="size-8 rounded object-cover shrink-0" />
-                      ) : fileIcon(file.Type, file.IsFolder)}
-                      <span className="truncate">{file.Name}</span>
-                    </div>
-                    <div className="col-span-2 text-muted-foreground text-xs self-center">
-                      {file.IsFolder ? 'folder' : formatSize(file.Size)}
-                    </div>
-                    <div className="col-span-3 text-muted-foreground text-xs self-center">
-                      {formatDate(file.TimeUpdate)}
-                    </div>
-                    <div className="col-span-2 flex items-center gap-1 self-center">
-                      <button
-                        className="p-1 rounded hover:bg-accent cursor-pointer"
-                        onClick={(e) => { e.stopPropagation(); handleRename(file) }}
-                      >
-                        <Pencil className="h-3 w-3" />
-                      </button>
-                      <button
-                        className="p-1 rounded hover:bg-destructive hover:text-destructive-foreground cursor-pointer"
-                        onClick={(e) => { e.stopPropagation(); handleDelete(file) }}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <FileListView items={filteredItems} onClick={handleClick} onRename={handleRename} onDelete={handleDelete} />
             )}
           </div>
 
-          {/* Status bar */}
           <div className="flex items-center justify-between px-4 py-1 border-t border-border text-xs text-muted-foreground">
             <span>{filteredItems.length} items</span>
             <span>Gram Drive {synced ? '| Synced' : '| Not synced'}</span>
           </div>
         </div>
       </div>
+
       {previewUrl && (
         <PreviewModal
           item={previewItem}
